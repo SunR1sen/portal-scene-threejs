@@ -3,12 +3,18 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
+import firefliesVertexShader from './shaders/fireflies/vertex.glsl'
+import firefliesFragmentShader from './shaders/fireflies/fragment.glsl'
+import portalVertexShader from './shaders/portal/vertex.glsl'
+import portalFragmentShader from './shaders/portal/fragment.glsl'
 
 /**
  * Base
  */
 // Debug
-const debugObject = {}
+const debugObject = {
+    firefliesCount: 35
+}
 const gui = new GUI({
     width: 400
 })
@@ -49,8 +55,28 @@ const poleLightMaterial = new THREE.MeshBasicMaterial({
 })
 
 // Portal light material
-const portalLightMaterial = new THREE.MeshBasicMaterial({
-    color: 0xE8E0F8
+const portalLightMaterial = new THREE.ShaderMaterial({
+    side: THREE.DoubleSide,
+    vertexShader: portalVertexShader,
+    fragmentShader: portalFragmentShader,
+    uniforms: {
+        uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) },
+        uTime: { value: 0 },
+        uColorStart: { value: new THREE.Color(0x2bc582) },
+        uColorEnd: { value: new THREE.Color(0x274277) }
+    }
+})
+
+debugObject.portalColorStart = '#2bc582'
+debugObject.portalColorEnd = '#274277'
+portalLightMaterial.uniforms.uColorStart.value.set(debugObject.portalColorStart)
+portalLightMaterial.uniforms.uColorEnd.value.set(debugObject.portalColorEnd)
+
+gui.addColor(debugObject, 'portalColorStart').onChange(() => {
+    portalLightMaterial.uniforms.uColorStart.value.set(debugObject.portalColorStart)
+})
+gui.addColor(debugObject, 'portalColorEnd').onChange(() => {
+    portalLightMaterial.uniforms.uColorEnd.value.set(debugObject.portalColorEnd)
 })
 
 // Model
@@ -73,6 +99,48 @@ gltfLoader.load(
     }
 )
 
+// Fireflies
+const firefliesGeometry = new THREE.BufferGeometry()
+
+const updateFireflies = () => {
+    const firefliesCount = debugObject.firefliesCount
+    const firefliesPositionsArray = new Float32Array(firefliesCount * 3)
+    const scaleArray = new Float32Array(firefliesCount)
+
+    for (let i = 0; i < firefliesCount; i++) {
+        firefliesPositionsArray[i * 3 + 0] = (Math.random() - 0.5) * 4
+        firefliesPositionsArray[i * 3 + 1] = Math.random() * 1.5
+        firefliesPositionsArray[i * 3 + 2] = (Math.random() - 0.5) * 4
+
+        scaleArray[i] = Math.random()
+    }
+    firefliesGeometry.setAttribute('position', new THREE.BufferAttribute(firefliesPositionsArray, 3))
+    firefliesGeometry.setAttribute('aScale', new THREE.BufferAttribute(scaleArray, 1))
+}
+
+updateFireflies()
+
+const firefliesShaderMaterial = new THREE.ShaderMaterial({
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    vertexShader: firefliesVertexShader,
+    fragmentShader: firefliesFragmentShader,
+    uniforms: {
+        uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) },
+        uSize: { value: 200.0 },
+        uTime: { value: 0 }
+    }
+})
+
+gui.add(firefliesShaderMaterial.uniforms.uSize, 'value').min(10).max(500).step(1).name('firefliesSize')
+gui.add(debugObject, 'firefliesCount').min(1).max(100).step(1).name('firefliesCount').onChange(() => {
+    updateFireflies()
+})
+
+const fireflies = new THREE.Points(firefliesGeometry, firefliesShaderMaterial)
+scene.add(fireflies)
+
 /**
  * Sizes
  */
@@ -94,6 +162,9 @@ window.addEventListener('resize', () =>
     // Update renderer
     renderer.setSize(sizes.width, sizes.height)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+
+    // Update fireflies
+    firefliesShaderMaterial.uniforms.uPixelRatio.value = Math.min(window.devicePixelRatio, 2)
 })
 
 /**
@@ -119,9 +190,9 @@ const renderer = new THREE.WebGLRenderer({
 })
 renderer.setSize(sizes.width, sizes.height)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-renderer.setClearColor('#d7b7b7')
+debugObject.clearColor = '#18161d'
 
-debugObject.clearColor = '#d7b7b7'
+renderer.setClearColor(debugObject.clearColor)
 
 gui.addColor(debugObject, 'clearColor').onChange(() => {
     renderer.setClearColor(debugObject.clearColor)
@@ -138,6 +209,12 @@ const tick = () =>
 
     // Update controls
     controls.update()
+
+    // Update fireflies
+    firefliesShaderMaterial.uniforms.uTime.value = elapsedTime
+
+    // Update portal
+    portalLightMaterial.uniforms.uTime.value = elapsedTime
 
     // Render
     renderer.render(scene, camera)
