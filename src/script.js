@@ -19,6 +19,13 @@ const gui = new GUI({
     width: 400
 })
 
+// Hide GUI by default
+gui.hide()
+
+if (window.location.hash === '#active') {
+    gui.show()
+}
+
 // Canvas
 const canvas = document.querySelector('canvas.webgl')
 
