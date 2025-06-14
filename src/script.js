@@ -8,6 +8,7 @@ import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
  * Base
  */
 // Debug
+const debugObject = {}
 const gui = new GUI({
     width: 400
 })
@@ -54,19 +55,20 @@ const portalLightMaterial = new THREE.MeshBasicMaterial({
 
 // Model
 gltfLoader.load(
-    'portal.glb',
+    'portal-baked.glb',
     (gltf) => {
-        gltf.scene.traverse((child) => {
-            if (child.isMesh) {
-                if (child.name === 'Cube004' || child.name === 'Cube028') {
-                    child.material = poleLightMaterial
-                } else if (child.name === 'Circle') {
-                    child.material = portalLightMaterial
-                } else {
-                    child.material = bakedMaterial
-                }
-            }
-        })
+        // gltf.scene.traverse((child) => {
+            const bakedMesh = gltf.scene.children.find((child) => child.name === 'baked')
+            bakedMesh.material = bakedMaterial
+            const poleLightA = gltf.scene.children.find((child) => child.name === 'Cube004')
+            poleLightA.material = poleLightMaterial
+            const poleLightB = gltf.scene.children.find((child) => child.name === 'Cube028')
+            poleLightB.material = poleLightMaterial
+            const portalLightMesh = gltf.scene.children.find((child) => child.name === 'Circle')
+            portalLightMesh.material = portalLightMaterial
+                
+            
+        // })
         scene.add(gltf.scene)
     }
 )
@@ -117,6 +119,13 @@ const renderer = new THREE.WebGLRenderer({
 })
 renderer.setSize(sizes.width, sizes.height)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+renderer.setClearColor('#d7b7b7')
+
+debugObject.clearColor = '#d7b7b7'
+
+gui.addColor(debugObject, 'clearColor').onChange(() => {
+    renderer.setClearColor(debugObject.clearColor)
+})
 
 /**
  * Animate
